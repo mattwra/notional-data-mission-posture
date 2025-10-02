@@ -240,7 +240,7 @@ def main():
     # Default file names
     mpd_file = "mpd_notional_data.json"
     test_file = "test_scores_notional_data.json"
-    db_file = "mpd_dashboard.db"
+    db_file = "development.db"
     
     # Check for command line arguments
     if len(sys.argv) > 1:
@@ -316,7 +316,7 @@ def show_usage():
     print("")
     print("Examples:")
     print("  python json_to_sqlite.py")
-    print("    Uses defaults: mpd_notional_data.json, test_scores_notional_data.json -> mpd_dashboard.db")
+    print("    Uses defaults: mpd_notional_data.json, test_scores_notional_data.json -> development.db")
     print("")
     print("  python json_to_sqlite.py my_mpd.json my_tests.json my_database.db")
     print("    Uses custom file names")
