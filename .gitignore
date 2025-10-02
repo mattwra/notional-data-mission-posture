@@ -1,10 +1,8 @@
 # Generated data files
 *.json
 *.db
-
-# But keep sample/reference files if needed
-#!sample_data.json
 !development.db
+
 
 # Python cache
 __pycache__/
