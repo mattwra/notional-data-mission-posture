@@ -27,14 +27,26 @@ def generate_mpd_dataset(total_rows=100000):
     tokens = ["AAA", "BBB", "CCC", "DDD", "XXX", "YYY", "ZZZ"]
     
     # Sample data arrays for realistic values - ALL CAPITALIZED
-    ranks = ["E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", 
-             "O1", "O2", "O3", "O4", "O5", "O6", "GS-12", "GS-13", "GS-14", "GS-15"]
-    orgs = ["AFMC", "ACC", "AMC", "AETC", "AFGSC", "AFRC", "ANG", "PACAF", "USAFE", "CENTCOM"]
+    # Generate org values: Z[1-4][1-4] (16 combinations)
+    orgs = [f"Z{i}{j}" for i in range(1, 5) for j in range(1, 5)]
     
     # Updated FUNCTION field - Job Roles that work across technology domains
     functions = ["SOFTWARE ENGINEER", "DATA ANALYST", "SYSTEM ADMINISTRATOR", "PROJECT MANAGER",
                 "CYBERSECURITY SPECIALIST", "TECHNICAL LEAD", "OPERATIONS MANAGER",
                 "RESEARCH ANALYST", "QUALITY ASSURANCE", "BUSINESS ANALYST"]
+
+    # Weighted distribution for functions (skewed toward technical roles, especially SOFTWARE ENGINEER)
+    function_weights = [35, 15, 12, 8, 10, 8, 5, 3, 2, 2]  # Must sum to 100
+    # SOFTWARE ENGINEER: 35%
+    # DATA ANALYST: 15%
+    # SYSTEM ADMINISTRATOR: 12%
+    # CYBERSECURITY SPECIALIST: 10%
+    # PROJECT MANAGER: 8%
+    # TECHNICAL LEAD: 8%
+    # OPERATIONS MANAGER: 5%
+    # RESEARCH ANALYST: 3%
+    # QUALITY ASSURANCE: 2%
+    # BUSINESS ANALYST: 2%
     
     buildings = ["BLDG 1", "BLDG 2", "BLDG 3", "BLDG 4", "BLDG 5", "ANNEX A", "ANNEX B", "HQ"]
     categories = ["OFFICER", "ENLISTED", "CIVILIAN", "CONTRACTOR"]
@@ -106,15 +118,51 @@ def generate_mpd_dataset(total_rows=100000):
     rank_categories = ["JUNIOR", "MID-LEVEL", "SENIOR", "EXECUTIVE"]
     loe_justifications = ["MISSION CRITICAL", "SUPPORT", "ADMINISTRATIVE", "TRAINING"]
     critical_skills_options = ["YES", "NO"]
+
+    # Create DFP to CIMPL_RANK mapping (100 unique combinations: 10 domains × 10 functions)
+    dfp_to_rank = {}
+    rank_counter = 1
+    for domain in domains:
+        for function in functions:
+            dfp = f"{domain}-{function}"
+            dfp_to_rank[dfp] = str(rank_counter)
+            rank_counter += 1
     
     def generate_sid():
-        """Generate unique 7 character alphanumeric SID"""
-        chars = string.ascii_uppercase + string.digits
-        return ''.join(random.choice(chars) for _ in range(7))
-    
-    def generate_fte():
-        """Generate FTE value between 0.1 and 1.0"""
-        return round(random.uniform(0.1, 1.0), 2)
+        """Generate unique 7 character alphanumeric SID (first 5 letters, last 2 alphanumeric)"""
+        # First 5 characters: letters only
+        first_five = ''.join(random.choice(string.ascii_uppercase) for _ in range(5))
+        # Last 2 characters: letters or digits
+        last_two = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(2))
+        return first_five + last_two
+
+    def generate_fte_splits(num_roles):
+        """Generate FTE values in 0.10 increments that sum to 1.0 for the given number of roles"""
+        if num_roles == 1:
+            return [1.0]
+
+        # Generate random splits in 0.10 increments that sum to 1.0
+        # Available increments: 0.1, 0.2, 0.3, ..., 1.0 (values 1-10 representing tenths)
+        splits = []
+        remaining_tenths = 10  # Start with 1.0 = 10 tenths
+
+        for i in range(num_roles - 1):
+            # Minimum 1 tenth (0.1), maximum is remaining minus 1 tenth per remaining role
+            min_tenths = 1
+            max_tenths = remaining_tenths - (num_roles - i - 1)
+
+            if max_tenths < min_tenths:
+                max_tenths = min_tenths
+
+            # Randomly select number of tenths
+            tenths = random.randint(min_tenths, max_tenths)
+            splits.append(tenths / 10.0)
+            remaining_tenths -= tenths
+
+        # Last role gets whatever is remaining
+        splits.append(remaining_tenths / 10.0)
+
+        return splits
     
     def generate_token_expression():
         """Generate ABAC token expressions with weighted complexity"""
@@ -165,21 +213,51 @@ def generate_mpd_dataset(total_rows=100000):
         return random.choice(patterns)()
     
     print(f"Generating {total_rows:,} MPD records...")
-    
-    for i in range(1, total_rows + 1):
+
+    # First, determine how many people we'll need to create total_rows records
+    # Distribution: 40% have 1 role, 60% split across multiple
+    # Of those who split: 65% have 2, 25% have 3, 10% have 4
+    people = []
+    records_created = 0
+
+    while records_created < total_rows:
+        # Decide number of roles for this person
+        if random.random() < 0.4:  # 40% have 1 role
+            num_roles = 1
+        else:  # 60% split across multiple
+            rand = random.random()
+            if rand < 0.65:  # 65% of splitters have 2 roles
+                num_roles = 2
+            elif rand < 0.90:  # 25% have 3 roles (0.65 + 0.25 = 0.90)
+                num_roles = 3
+            else:  # 10% have 4 roles
+                num_roles = 4
+
+        # Don't exceed total_rows
+        if records_created + num_roles > total_rows:
+            num_roles = total_rows - records_created
+            if num_roles == 0:
+                break
+
+        people.append(num_roles)
+        records_created += num_roles
+
+    # Now generate records for each person
+    record_id = 1
+
+    for person_idx, num_roles in enumerate(people):
+        # Generate base attributes that stay the same across all roles for this person
+        sid = generate_sid()
         snapshot = random.choice(snapshots)
-        
-        # Select a random address (ensures city/state/country consistency)
         city, state, country = random.choice(addresses)
-        
-        record = {
-            "ID": i,
-            "SID": generate_sid(),
+        org_value = random.choice(orgs)
+
+        # Generate common fields for this person
+        common_fields = {
+            "SID": sid,
             "SNAPSHOT": snapshot["snapshot"],
             "SNAPSHOT_MONTH": snapshot["date"],
-            "CIMPL_RANK": random.choice(ranks),
-            "DUTY_ORG": random.choice(orgs),
-            "FUNCTION": random.choice(functions),
+            "DUTY_ORG": org_value,
             "BUILDING": random.choice(buildings),
             "POP_CATEGORY": random.choice(categories),
             "GROUPS": f"GROUP {random.randint(1, 20)}",
@@ -188,21 +266,18 @@ def generate_mpd_dataset(total_rows=100000):
             "FUNCTIONAL_ROLE": random.choice(functional_roles),
             "COUNTRY": country,
             "NIPF_PRIORITY": random.choice(nipf_priority),
-            "DOMAIN": random.choice(domains),
-            "FTE": generate_fte(),
             "EMPLOYEE_SKILL_COMMUNITY": random.choice(skills),
-            "MISSION_ELEMENT": f"ME-{random.randint(1, 100)}",
+            "MISSION_ELEMENT": org_value,
             "LOCATION_SPECIFIC": f"LOCATION {random.randint(1, 50)}",
             "STATE": state,
-            "DFP": f"DFP-{random.randint(100, 1099)}",
             "WORK_ROLE": random.choice(work_roles),
             "CITY": city,
             "CIMPL_RANK_CATEGORY": random.choice(rank_categories),
-            "ASSIGNED_ORG_TD": random.choice(orgs),
+            "ASSIGNED_ORG": org_value,
             "STATUS": random.choice(statuses),
             "SITE": f"SITE {random.randint(1, 10)}",
             "LOE_JUSTIFICATION": random.choice(loe_justifications),
-            "REGION": "",  # Leaving blank as requested
+            "REGION": "",
             "AFFILIATION_TYPE": random.choice(affiliation_type),
             "ACTIVITY_DAF": f"ACTIVITY {random.randint(1, 100)}",
             "CRITICAL_SKILLS": random.choice(critical_skills_options),
@@ -210,13 +285,35 @@ def generate_mpd_dataset(total_rows=100000):
             "SITE_RESILIENCE": random.choice(site_resilience),
             "TOKENS": generate_token_expression()
         }
-        
-        data.append(record)
-        
+
+        # Generate FTE splits for this person's roles
+        fte_splits = generate_fte_splits(num_roles)
+
+        # Create records for each role
+        for role_idx in range(num_roles):
+            # Select domain and function for this role
+            domain = random.choice(domains)
+            function = random.choices(functions, weights=function_weights, k=1)[0]
+            dfp = f"{domain}-{function}"
+            cimpl_rank = dfp_to_rank[dfp]
+
+            record = {
+                "ID": record_id,
+                **common_fields,
+                "DOMAIN": domain,
+                "FUNCTION": function,
+                "DFP": dfp,
+                "CIMPL_RANK": cimpl_rank,
+                "FTE": fte_splits[role_idx]
+            }
+
+            data.append(record)
+            record_id += 1
+
         # Progress indicator
-        if i % 25000 == 0:
-            print(f"Generated {i:,} MPD records...")
-    
+        if record_id % 2500 == 0:
+            print(f"Generated {record_id:,} MPD records...")
+
     return data
 
 def generate_test_scores_dataset(mpd_data, total_test_records=7000):

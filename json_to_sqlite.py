@@ -33,7 +33,7 @@ def create_mpd_table(cursor):
             WORK_ROLE VARCHAR(128),
             CITY VARCHAR(128),
             CIMPL_RANK_CATEGORY VARCHAR(128),
-            ASSIGNED_ORG_TD VARCHAR(128),
+            ASSIGNED_ORG VARCHAR(128),
             STATUS VARCHAR(128),
             SITE VARCHAR(128),
             LOE_JUSTIFICATION VARCHAR(128),
@@ -69,15 +69,15 @@ def insert_mpd_data(cursor, data):
     
     insert_query = '''
         INSERT INTO mpd_data (
-            ID, SID, SNAPSHOT, SNAPSHOT_MONTH, CIMPL_RANK, DUTY_ORG, FUNCTION, 
-            BUILDING, POP_CATEGORY, GROUPS, FOCUS_AREA, NIAB_CATEGORY, 
-            FUNCTIONAL_ROLE, COUNTRY, NIPF_PRIORITY, DOMAIN, FTE, 
-            EMPLOYEE_SKILL_COMMUNITY, MISSION_ELEMENT, LOCATION_SPECIFIC, 
-            STATE, DFP, WORK_ROLE, CITY, CIMPL_RANK_CATEGORY, ASSIGNED_ORG_TD, 
-            STATUS, SITE, LOE_JUSTIFICATION, REGION, AFFILIATION_TYPE, 
-            ACTIVITY_DAF, CRITICAL_SKILLS, DOMAIN_TWO_PLUS_THREE, 
+            ID, SID, SNAPSHOT, SNAPSHOT_MONTH, CIMPL_RANK, DUTY_ORG, FUNCTION,
+            BUILDING, POP_CATEGORY, GROUPS, FOCUS_AREA, NIAB_CATEGORY,
+            FUNCTIONAL_ROLE, COUNTRY, NIPF_PRIORITY, DOMAIN, FTE,
+            EMPLOYEE_SKILL_COMMUNITY, MISSION_ELEMENT, LOCATION_SPECIFIC,
+            STATE, DFP, WORK_ROLE, CITY, CIMPL_RANK_CATEGORY, ASSIGNED_ORG,
+            STATUS, SITE, LOE_JUSTIFICATION, REGION, AFFILIATION_TYPE,
+            ACTIVITY_DAF, CRITICAL_SKILLS, DOMAIN_TWO_PLUS_THREE,
             SITE_RESILIENCE, TOKENS
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
     
@@ -110,7 +110,7 @@ def insert_mpd_data(cursor, data):
                 record['WORK_ROLE'],
                 record['CITY'],
                 record['CIMPL_RANK_CATEGORY'],
-                record['ASSIGNED_ORG_TD'],
+                record['ASSIGNED_ORG'],
                 record['STATUS'],
                 record['SITE'],
                 record['LOE_JUSTIFICATION'],
@@ -190,7 +190,7 @@ def load_json_file(filename):
 def create_indexes(cursor):
     """Create indexes for better query performance"""
     print("Creating database indexes...")
-    
+
     indexes = [
         "CREATE INDEX IF NOT EXISTS idx_mpd_sid ON mpd_data(SID)",
         "CREATE INDEX IF NOT EXISTS idx_mpd_snapshot ON mpd_data(SNAPSHOT)",
@@ -200,11 +200,60 @@ def create_indexes(cursor):
         "CREATE INDEX IF NOT EXISTS idx_test_group ON test_scores(TEST_GROUP)",
         "CREATE INDEX IF NOT EXISTS idx_test_language ON test_scores(LANGUAGE)"
     ]
-    
+
     for index_sql in indexes:
         cursor.execute(index_sql)
-    
+
     print("✅ Database indexes created")
+
+def create_views(cursor):
+    """Create database views"""
+    print("Creating database views...")
+
+    # Create v_mpd_data view with reordered columns
+    cursor.execute("""
+        CREATE VIEW IF NOT EXISTS v_mpd_data AS
+        SELECT
+            ID,
+            SID,
+            SNAPSHOT,
+            SNAPSHOT_MONTH,
+            FTE,
+            AFFILIATION_TYPE,
+            DUTY_ORG,
+            MISSION_ELEMENT,
+            ASSIGNED_ORG,
+            WORK_ROLE,
+            DOMAIN,
+            FUNCTION,
+            DFP,
+            CIMPL_RANK,
+            POP_CATEGORY,
+            GROUPS,
+            FOCUS_AREA,
+            NIAB_CATEGORY,
+            FUNCTIONAL_ROLE,
+            NIPF_PRIORITY,
+            EMPLOYEE_SKILL_COMMUNITY,
+            LOCATION_SPECIFIC,
+            SITE_RESILIENCE,
+            SITE,
+            BUILDING,
+            CITY,
+            STATE,
+            COUNTRY,
+            REGION,
+            CIMPL_RANK_CATEGORY,
+            STATUS,
+            LOE_JUSTIFICATION,
+            ACTIVITY_DAF,
+            CRITICAL_SKILLS,
+            DOMAIN_TWO_PLUS_THREE,
+            TOKENS
+        FROM mpd_data
+    """)
+
+    print("✅ Database views created")
 
 def get_database_stats(cursor):
     """Get statistics about the created database"""
@@ -288,7 +337,10 @@ def main():
         
         # Create indexes
         create_indexes(cursor)
-        
+
+        # Create views
+        create_views(cursor)
+
         # Commit changes
         conn.commit()
         print("\n✅ All data committed to database")
