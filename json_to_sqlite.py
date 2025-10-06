@@ -63,6 +63,29 @@ def create_test_scores_table(cursor):
         )
     ''')
 
+def create_reports_table(cursor):
+    """Create the reports table with proper schema"""
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS reports (
+            ID INTEGER PRIMARY KEY,
+            SID VARCHAR(128),
+            SNAPSHOT VARCHAR(128),
+            SNAPSHOT_MONTH DATE,
+            GEO VARCHAR(128),
+            TOPIC VARCHAR(128),
+            DFP VARCHAR(256),
+            ORG VARCHAR(128),
+            JOB VARCHAR(128),
+            REPORT_KIND VARCHAR(50),
+            FULL_TOPIC VARCHAR(256),
+            NIPF_PRIORITY VARCHAR(128),
+            CIMPL_RANK VARCHAR(128),
+            CIMPL_RANK_CATEGORY VARCHAR(128),
+            SERIAL_NUMBER VARCHAR(128),
+            TOKENS VARCHAR(500)
+        )
+    ''')
+
 def insert_mpd_data(cursor, data):
     """Insert MPD data into the database"""
     print(f"Inserting {len(data):,} MPD records...")
@@ -169,6 +192,50 @@ def insert_test_scores_data(cursor, data):
     print(f"✅ Successfully inserted {records_inserted:,} test score records")
     return records_inserted
 
+def insert_reports_data(cursor, data):
+    """Insert reports data into the database"""
+    print(f"Inserting {len(data):,} report records...")
+
+    insert_query = '''
+        INSERT INTO reports (
+            ID, SID, SNAPSHOT, SNAPSHOT_MONTH, GEO, TOPIC, DFP, ORG, JOB,
+            REPORT_KIND, FULL_TOPIC, NIPF_PRIORITY, CIMPL_RANK,
+            CIMPL_RANK_CATEGORY, SERIAL_NUMBER, TOKENS
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    '''
+
+    records_inserted = 0
+    for record in data:
+        try:
+            cursor.execute(insert_query, (
+                record['ID'],
+                record['SID'],
+                record['SNAPSHOT'],
+                record['SNAPSHOT_MONTH'],
+                record['GEO'],
+                record['TOPIC'],
+                record['DFP'],
+                record['ORG'],
+                record['JOB'],
+                record['REPORT_KIND'],
+                record['FULL_TOPIC'],
+                record['NIPF_PRIORITY'],
+                record['CIMPL_RANK'],
+                record['CIMPL_RANK_CATEGORY'],
+                record['SERIAL_NUMBER'],
+                record['TOKENS']
+            ))
+            records_inserted += 1
+
+            if records_inserted % 1000 == 0:
+                print(f"  Inserted {records_inserted:,} report records...")
+
+        except Exception as e:
+            print(f"Error inserting report record {record.get('ID', 'Unknown')}: {e}")
+
+    print(f"✅ Successfully inserted {records_inserted:,} report records")
+    return records_inserted
+
 def load_json_file(filename):
     """Load and parse JSON file"""
     if not os.path.exists(filename):
@@ -198,7 +265,11 @@ def create_indexes(cursor):
         "CREATE INDEX IF NOT EXISTS idx_test_sid ON test_scores(SID)",
         "CREATE INDEX IF NOT EXISTS idx_test_snapshot ON test_scores(SNAPSHOT)",
         "CREATE INDEX IF NOT EXISTS idx_test_group ON test_scores(TEST_GROUP)",
-        "CREATE INDEX IF NOT EXISTS idx_test_language ON test_scores(LANGUAGE)"
+        "CREATE INDEX IF NOT EXISTS idx_test_language ON test_scores(LANGUAGE)",
+        "CREATE INDEX IF NOT EXISTS idx_reports_sid ON reports(SID)",
+        "CREATE INDEX IF NOT EXISTS idx_reports_snapshot ON reports(SNAPSHOT)",
+        "CREATE INDEX IF NOT EXISTS idx_reports_serial ON reports(SERIAL_NUMBER)",
+        "CREATE INDEX IF NOT EXISTS idx_reports_kind ON reports(REPORT_KIND)"
     ]
 
     for index_sql in indexes:
@@ -259,29 +330,44 @@ def get_database_stats(cursor):
     """Get statistics about the created database"""
     cursor.execute("SELECT COUNT(*) FROM mpd_data")
     mpd_count = cursor.fetchone()[0]
-    
+
     cursor.execute("SELECT COUNT(*) FROM test_scores")
     test_count = cursor.fetchone()[0]
-    
+
+    cursor.execute("SELECT COUNT(*) FROM reports")
+    reports_count = cursor.fetchone()[0]
+
     cursor.execute("SELECT COUNT(DISTINCT SID) FROM mpd_data")
     unique_mpd_sids = cursor.fetchone()[0]
-    
+
     cursor.execute("SELECT COUNT(DISTINCT SID) FROM test_scores")
     unique_test_sids = cursor.fetchone()[0]
-    
+
+    cursor.execute("SELECT COUNT(DISTINCT SID) FROM reports")
+    unique_reports_sids = cursor.fetchone()[0]
+
     print(f"\n📊 Database Statistics:")
     print(f"  MPD records: {mpd_count:,}")
     print(f"  Test score records: {test_count:,}")
+    print(f"  Report records: {reports_count:,}")
     print(f"  Unique SIDs in MPD: {unique_mpd_sids:,}")
     print(f"  Unique SIDs with tests: {unique_test_sids:,}")
-    
+    print(f"  Unique SIDs with reports: {unique_reports_sids:,}")
+
     if unique_mpd_sids > 0:
-        coverage = (unique_test_sids / unique_mpd_sids) * 100
-        print(f"  Test coverage: {coverage:.1f}% of MPD SIDs")
-    
+        test_coverage = (unique_test_sids / unique_mpd_sids) * 100
+        print(f"  Test coverage: {test_coverage:.1f}% of MPD SIDs")
+
+        reports_coverage = (unique_reports_sids / unique_mpd_sids) * 100
+        print(f"  Reports coverage: {reports_coverage:.1f}% of MPD SIDs")
+
     if unique_test_sids > 0:
         avg_tests = test_count / unique_test_sids
         print(f"  Average tests per SID: {avg_tests:.1f}")
+
+    if unique_reports_sids > 0:
+        avg_reports = reports_count / unique_reports_sids
+        print(f"  Average reports per SID: {avg_reports:.1f}")
 
 def main():
     print("=== JSON to SQLite Database Converter ===\n")
@@ -289,28 +375,36 @@ def main():
     # Default file names
     mpd_file = "mpd_notional_data.json"
     test_file = "test_scores_notional_data.json"
+    reports_file = "reports_notional_data.json"
     db_file = "development.db"
-    
+
     # Check for command line arguments
     if len(sys.argv) > 1:
         mpd_file = sys.argv[1]
     if len(sys.argv) > 2:
         test_file = sys.argv[2]
     if len(sys.argv) > 3:
-        db_file = sys.argv[3]
-    
+        reports_file = sys.argv[3]
+    if len(sys.argv) > 4:
+        db_file = sys.argv[4]
+
     print(f"Input files:")
     print(f"  MPD data: {mpd_file}")
     print(f"  Test scores: {test_file}")
+    print(f"  Reports: {reports_file}")
     print(f"Output database: {db_file}\n")
-    
+
     # Load JSON data
     mpd_data = load_json_file(mpd_file)
     if mpd_data is None:
         return 1
-    
+
     test_data = load_json_file(test_file)
     if test_data is None:
+        return 1
+
+    reports_data = load_json_file(reports_file)
+    if reports_data is None:
         return 1
     
     # Create/connect to SQLite database
@@ -328,12 +422,14 @@ def main():
         print("\nCreating database tables...")
         create_mpd_table(cursor)
         create_test_scores_table(cursor)
+        create_reports_table(cursor)
         print("✅ Database tables created")
-        
+
         # Insert data
         print("\nInserting data...")
         mpd_inserted = insert_mpd_data(cursor, mpd_data)
         test_inserted = insert_test_scores_data(cursor, test_data)
+        reports_inserted = insert_reports_data(cursor, reports_data)
         
         # Create indexes
         create_indexes(cursor)
@@ -354,7 +450,8 @@ def main():
         print(f"\n🎉 Successfully created database: {db_file}")
         print(f"   MPD records: {mpd_inserted:,}")
         print(f"   Test records: {test_inserted:,}")
-        
+        print(f"   Report records: {reports_inserted:,}")
+
         return 0
         
     except Exception as e:

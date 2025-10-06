@@ -584,6 +584,177 @@ def get_test_scores_summary(test_data, mpd_data):
     for i, token_expr in enumerate(sample_tokens, 1):
         print(f"  {i}. {token_expr}")
 
+def generate_reports_dataset(mpd_data, target_records=8500):
+    """
+    Generate reports dataset with SIDs that reference the MPD dataset
+    Average 2 reports per person, 1-10 SIDs per report
+    """
+    reports_data = []
+
+    # Report kinds with priority (highest to lowest)
+    report_kinds = ["PDB", "HIGH", "MEDIUM", "LOW"]
+
+    # GEO and TOPIC are synonymous with DOMAIN and FUNCTION
+    geos = ["ARTIFICIAL INTELLIGENCE", "CLOUD COMPUTING", "CYBERSECURITY", "DATA SCIENCE", "ROBOTICS",
+            "BLOCKCHAIN", "QUANTUM", "BIOMETRICS", "SATELLITE", "WIRELESS"]
+    topics = ["SOFTWARE ENGINEER", "DATA ANALYST", "SYSTEM ADMINISTRATOR", "PROJECT MANAGER",
+              "CYBERSECURITY SPECIALIST", "TECHNICAL LEAD", "OPERATIONS MANAGER",
+              "RESEARCH ANALYST", "QUALITY ASSURANCE", "BUSINESS ANALYST"]
+
+    # Create DFP to CIMPL_RANK and NIPF_PRIORITY mappings (same as mpd_data)
+    dfp_to_rank = {}
+    dfp_to_nipf = {}
+    rank_counter = 1
+    nipf_values = ["1", "2", "3", "4", "NONE"]
+
+    for geo in geos:
+        for topic in topics:
+            dfp = f"{geo}-{topic}"
+            dfp_to_rank[dfp] = str(rank_counter)
+            # Assign NIPF_PRIORITY based on DFP (distribute across values)
+            dfp_to_nipf[dfp] = nipf_values[rank_counter % len(nipf_values)]
+            rank_counter += 1
+
+    # Create lookup for MPD data by SID and SNAPSHOT
+    mpd_lookup = {}
+    for record in mpd_data:
+        key = f"{record['SID']}_{record['SNAPSHOT']}"
+        if key not in mpd_lookup:
+            mpd_lookup[key] = record
+
+    # Get all unique SID/snapshot combinations
+    valid_sid_snapshots = list(mpd_lookup.keys())
+
+    # Get unique people (SID+SNAPSHOT combos)
+    unique_people = list(set(valid_sid_snapshots))
+
+    print(f"Generating reports dataset (target: {target_records:,} records)...")
+    print(f"Unique people available: {len(unique_people):,}")
+
+    # Generate reports
+    # Average 2 reports per person, so we need roughly target_records / 2 / avg_sids_per_report
+    # With avg 5 SIDs per report: target_records / 2 / 5 = number of reports
+    # But we want target_records total, so: target_records / avg_sids_per_report
+    avg_sids_per_report = 5.5  # Middle of 1-10 range
+    num_reports = int(target_records / avg_sids_per_report)
+
+    record_id = 1
+
+    def generate_serial_number():
+        """Generate SERIAL_NUMBER: 2-digit number (10-99) + dash + 5-char alphanumeric"""
+        two_digit = random.randint(10, 99)
+        five_char = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+        return f"{two_digit}-{five_char}"
+
+    for report_idx in range(num_reports):
+        # Generate SERIAL_NUMBER
+        serial_number = generate_serial_number()
+
+        # Decide how many SIDs for this report (1-10)
+        num_sids = random.randint(1, 10)
+
+        # Select random SIDs for this report
+        selected_sids = random.sample(valid_sid_snapshots, min(num_sids, len(valid_sid_snapshots)))
+
+        # Select GEO and TOPIC for this report
+        geo = random.choice(geos)
+        topic = random.choice(topics)
+        dfp = f"{geo}-{topic}"
+        cimpl_rank = dfp_to_rank[dfp]
+        nipf_priority = dfp_to_nipf[dfp]
+
+        # Select REPORT_KIND
+        report_kind = random.choice(report_kinds)
+
+        # Create a record for each SID in this report
+        for sid_snapshot_key in selected_sids:
+            sid, snapshot = sid_snapshot_key.split('_', 1)
+            mpd_record = mpd_lookup[sid_snapshot_key]
+
+            report_record = {
+                "ID": record_id,
+                "SID": sid,
+                "SNAPSHOT": snapshot,
+                "SNAPSHOT_MONTH": mpd_record['SNAPSHOT_MONTH'],
+                "GEO": geo,
+                "TOPIC": topic,
+                "DFP": dfp,
+                "ORG": mpd_record['MISSION_ELEMENT'],
+                "JOB": "ANALYST",
+                "REPORT_KIND": report_kind,
+                "FULL_TOPIC": None,
+                "NIPF_PRIORITY": nipf_priority,
+                "CIMPL_RANK": cimpl_rank,
+                "CIMPL_RANK_CATEGORY": "",
+                "SERIAL_NUMBER": serial_number,
+                "TOKENS": mpd_record['TOKENS']
+            }
+
+            reports_data.append(report_record)
+            record_id += 1
+
+            # Stop if we've reached target
+            if len(reports_data) >= target_records:
+                break
+
+        if len(reports_data) >= target_records:
+            break
+
+        # Progress indicator
+        if report_idx % 500 == 0 and report_idx > 0:
+            print(f"Generated {len(reports_data):,} report records...")
+
+    print(f"Final report count: {len(reports_data):,} records")
+    return reports_data
+
+def get_reports_summary(reports_data, mpd_data):
+    """Print summary statistics of the reports data"""
+    print(f"\nReports Dataset Summary:")
+    print(f"Total report records: {len(reports_data):,}")
+
+    # Count unique SIDs in reports
+    unique_report_sids = set(record['SID'] for record in reports_data)
+    unique_mpd_sids = set(record['SID'] for record in mpd_data)
+
+    print(f"Unique SIDs in reports: {len(unique_report_sids):,}")
+    print(f"Percentage of MPD SIDs with reports: {(len(unique_report_sids)/len(unique_mpd_sids)*100):.1f}%")
+
+    # Average reports per SID
+    avg_reports = len(reports_data) / len(unique_report_sids)
+    print(f"Average reports per SID: {avg_reports:.1f}")
+
+    # Unique serial numbers
+    unique_serials = set(record['SERIAL_NUMBER'] for record in reports_data)
+    print(f"Unique reports (SERIAL_NUMBERs): {len(unique_serials):,}")
+
+    # Average SIDs per report
+    avg_sids_per_report = len(reports_data) / len(unique_serials)
+    print(f"Average SIDs per report: {avg_sids_per_report:.1f}")
+
+    # Distribution by REPORT_KIND
+    report_kind_counts = {}
+    for record in reports_data:
+        kind = record['REPORT_KIND']
+        report_kind_counts[kind] = report_kind_counts.get(kind, 0) + 1
+
+    print("\nDistribution by REPORT_KIND:")
+    for kind in ["PDB", "HIGH", "MEDIUM", "LOW"]:
+        count = report_kind_counts.get(kind, 0)
+        percentage = (count / len(reports_data)) * 100
+        print(f"  {kind}: {count:,} records ({percentage:.1f}%)")
+
+    # Top 10 GEO-TOPIC combinations
+    dfp_counts = {}
+    for record in reports_data:
+        dfp = record['DFP']
+        dfp_counts[dfp] = dfp_counts.get(dfp, 0) + 1
+
+    print("\nTop 10 GEO-TOPIC (DFP) combinations:")
+    sorted_dfps = sorted(dfp_counts.items(), key=lambda x: x[1], reverse=True)
+    for dfp, count in sorted_dfps[:10]:
+        percentage = (count / len(reports_data)) * 100
+        print(f"  {dfp}: {count:,} records ({percentage:.1f}%)")
+
 # Main execution
 if __name__ == "__main__":
     import sys
@@ -612,25 +783,36 @@ if __name__ == "__main__":
     
     # Generate the test scores dataset (referencing MPD data)
     test_scores_data = generate_test_scores_dataset(mpd_data, test_record_count)
-    
+
+    # Generate the reports dataset (referencing MPD data)
+    # Target 8000-9000 records, scale based on mpd_record_count
+    reports_target = max(1, int(mpd_record_count * 0.85))  # 85% of MPD records
+    reports_data = generate_reports_dataset(mpd_data, reports_target)
+
     # Show summaries
     get_mpd_data_summary(mpd_data)
     get_test_scores_summary(test_scores_data, mpd_data)
-    
+    get_reports_summary(reports_data, mpd_data)
+
     # Save MPD data
     save_to_json(mpd_data, "mpd_notional_data.json")
-    
+
     # Save test scores data
     save_to_json(test_scores_data, "test_scores_notional_data.json")
-    
+
+    # Save reports data
+    save_to_json(reports_data, "reports_notional_data.json")
+
     # Optionally save to CSV (requires pandas)
     # save_to_csv(mpd_data, "mpd_notional_data.csv")
     # save_to_csv(test_scores_data, "test_scores_notional_data.csv")
-    
+    # save_to_csv(reports_data, "reports_notional_data.csv")
+
     print("\n=== Generation Complete! ===")
     print("Files created:")
     print(f"- mpd_notional_data.json ({mpd_record_count:,} MPD records)")
     print(f"- test_scores_notional_data.json ({len(test_scores_data):,} test score records)")
+    print(f"- reports_notional_data.json ({len(reports_data):,} report records)")
     print("- Uncomment save_to_csv() lines to also create CSV files")
     print(f"\nUsage: python generate_mpd_data.py [number_of_mpd_records]")
     print(f"Example: python generate_mpd_data.py 1000")
