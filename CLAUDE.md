@@ -38,7 +38,7 @@ python json_to_sqlite.py my_mpd.json my_tests.json my_database.db
 
 ## Data Architecture
 
-### MPD Dataset (36 fields)
+### MPD Dataset (38 fields)
 Primary personnel dataset with snapshot-based temporal structure. Each record represents a person's data at a specific point in time.
 
 **Critical Fields**:
@@ -47,7 +47,11 @@ Primary personnel dataset with snapshot-based temporal structure. Each record re
 - `SNAPSHOT_MONTH` (DATE): Associated date (YYYY-10-31 for Fall, YYYY-02-28 for Spring)
 - `FUNCTION` (VARCHAR): Job role (10 options: SOFTWARE ENGINEER, DATA ANALYST, etc.)
 - `DOMAIN` (VARCHAR): Technology category (10 options: ARTIFICIAL INTELLIGENCE, CLOUD COMPUTING, etc.)
-- `CITY`, `STATE`, `COUNTRY` (VARCHAR): Location fields (state blank for international)
+- `CITY` (VARCHAR): City name
+- `COUNTRY` (VARCHAR): Full country name
+- `COUNTRY_CODE` (VARCHAR(2)): ISO two-letter country code (US, DE, JP, etc.)
+- `ADDRESS_ADMIN_1` (VARCHAR): First-level administrative division (state/province/prefecture name)
+- `ADDRESS_ADMIN_1_TYPE` (VARCHAR): Type of administrative division (STATE, PROVINCE, PREFECTURE, etc.)
 - `AFFILIATION_TYPE` (VARCHAR): CONTRACTOR, CIVILIAN, or MILITARY
 - `TOKENS` (VARCHAR): ABAC expression for access control
 
@@ -81,11 +85,20 @@ Language test records that reference MPD personnel through SID.
 - ❌ "San Antonio", "System Administrator"
 
 ### 2. ADDRESS FORMAT
-**US Locations**: Full city name + 2-char state code + "UNITED STATES OF AMERICA"
-- Example: ("SAN ANTONIO", "TX", "UNITED STATES OF AMERICA")
+Address data uses a hierarchical structure: Country → Admin1 → City
 
-**International Locations**: Full city name + empty state + country name
-- Example: ("RAMSTEIN", "", "GERMANY")
+**Structure**: (City, Country, Country_Code, Admin1, Admin1_Type)
+
+**US Example**:
+- `("SAN ANTONIO", "UNITED STATES OF AMERICA", "US", "TEXAS", "STATE")`
+
+**International Examples**:
+- Germany: `("RAMSTEIN", "GERMANY", "DE", "RHEINLAND-PFALZ", "STATE")`
+- Japan: `("KADENA", "JAPAN", "JP", "OKINAWA", "PREFECTURE")`
+- South Korea: `("OSAN", "SOUTH KOREA", "KR", "GYEONGGI", "PROVINCE")`
+- UK: `("LAKENHEATH", "UNITED KINGDOM", "GB", "ENGLAND", "COUNTRY")`
+
+**Admin1 Type Values**: STATE, PROVINCE, PREFECTURE, DISTRICT, COUNTRY, REGION, MUNICIPALITY, EMIRATE, TERRITORY
 
 ### 3. DOMAIN Field (Technology Categories)
 10 valid technology domains:
@@ -122,7 +135,14 @@ ZABRAK, CEREAN, GUNGAN, NABOO, CORELLIAN, ALDERAANIAN
 ## Database Schema
 
 ### Table: mpd_data
-36 columns including ID (primary key), personnel fields, organizational data, and TOKENS.
+38 columns including ID (primary key), personnel fields, organizational data, address fields, and TOKENS.
+
+**Address Fields**:
+- `CITY`: City name
+- `COUNTRY`: Full country name
+- `COUNTRY_CODE`: Two-letter ISO country code
+- `ADDRESS_ADMIN_1`: First-level administrative division name (state/province/etc.)
+- `ADDRESS_ADMIN_1_TYPE`: Type of administrative division
 
 **Key Indexes**:
 - `idx_mpd_sid` on SID
@@ -194,8 +214,9 @@ ORDER BY m.SNAPSHOT;
 
 When generating or modifying data:
 - [ ] All text values are in CAPITAL LETTERS
-- [ ] US addresses have 2-character state codes
-- [ ] International addresses have blank state field
+- [ ] All addresses have COUNTRY, COUNTRY_CODE, ADDRESS_ADMIN_1, and ADDRESS_ADMIN_1_TYPE
+- [ ] COUNTRY_CODE values are valid ISO two-letter codes
+- [ ] ADDRESS_ADMIN_1_TYPE matches the country's administrative structure
 - [ ] All SIDs in test_scores exist in mpd_data
 - [ ] SNAPSHOT values match between datasets for same SID
 - [ ] TEST_GROUP values follow score logic
@@ -210,8 +231,8 @@ When generating or modifying data:
 **Why CAPITAL LETTERS?**
 Makes querying easier and more consistent. No case sensitivity issues.
 
-**Why separate City/State/Country fields?**
-Allows flexible filtering on location dimensions independently.
+**Why hierarchical address structure (Country/Admin1/City)?**
+Provides a globally-consistent location model that works across all countries. The ADDRESS_ADMIN_1 and ADDRESS_ADMIN_1_TYPE fields allow for flexible filtering on first-level administrative divisions (states, provinces, prefectures, etc.) regardless of country, while COUNTRY_CODE enables efficient country-level queries.
 
 **Why technology domains instead of warfare domains?**
 More broadly applicable and easier to understand for testing purposes.

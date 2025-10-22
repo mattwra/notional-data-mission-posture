@@ -51,57 +51,57 @@ def generate_mpd_dataset(total_rows=100000):
     buildings = ["BLDG 1", "BLDG 2", "BLDG 3", "BLDG 4", "BLDG 5", "ANNEX A", "ANNEX B", "HQ"]
     categories = ["OFFICER", "ENLISTED", "CIVILIAN", "CONTRACTOR"]
     
-    # Realistic address combinations (City, State, Country) - ALL CAPITALIZED
+    # Address data: (City, Country, Country_Code, Admin1, Admin1_Type) - ALL CAPITALIZED
     addresses = [
         # United States locations
-        ("SAN ANTONIO", "TX", "UNITED STATES OF AMERICA"),
-        ("COLORADO SPRINGS", "CO", "UNITED STATES OF AMERICA"),
-        ("DAYTON", "OH", "UNITED STATES OF AMERICA"),
-        ("WASHINGTON", "DC", "UNITED STATES OF AMERICA"),
-        ("NORFOLK", "VA", "UNITED STATES OF AMERICA"),
-        ("TAMPA", "FL", "UNITED STATES OF AMERICA"),
-        ("LAS VEGAS", "NV", "UNITED STATES OF AMERICA"),
-        ("LOS ANGELES", "CA", "UNITED STATES OF AMERICA"),
-        ("OMAHA", "NE", "UNITED STATES OF AMERICA"),
-        ("MONTGOMERY", "AL", "UNITED STATES OF AMERICA"),
-        ("SHREVEPORT", "LA", "UNITED STATES OF AMERICA"),
-        ("SPOKANE", "WA", "UNITED STATES OF AMERICA"),
-        ("TUCSON", "AZ", "UNITED STATES OF AMERICA"),
-        ("GOLDSBORO", "NC", "UNITED STATES OF AMERICA"),
-        ("LITTLE ROCK", "AR", "UNITED STATES OF AMERICA"),
-        ("BILOXI", "MS", "UNITED STATES OF AMERICA"),
-        ("DEL RIO", "TX", "UNITED STATES OF AMERICA"),
-        ("VALDOSTA", "GA", "UNITED STATES OF AMERICA"),
-        ("GREAT FALLS", "MT", "UNITED STATES OF AMERICA"),
-        ("MINOT", "ND", "UNITED STATES OF AMERICA"),
-        ("CHEYENNE", "WY", "UNITED STATES OF AMERICA"),
-        ("SALT LAKE CITY", "UT", "UNITED STATES OF AMERICA"),
-        ("ANCHORAGE", "AK", "UNITED STATES OF AMERICA"),
-        ("HONOLULU", "HI", "UNITED STATES OF AMERICA"),
-        
-        # International locations (no state for international)
-        ("RAMSTEIN", "", "GERMANY"),
-        ("SPANGDAHLEM", "", "GERMANY"),
-        ("KAISERSLAUTERN", "", "GERMANY"),
-        ("STUTTGART", "", "GERMANY"),
-        ("WIESBADEN", "", "GERMANY"),
-        ("YOKOTA", "", "JAPAN"),
-        ("KADENA", "", "JAPAN"),
-        ("MISAWA", "", "JAPAN"),
-        ("OSAN", "", "SOUTH KOREA"),
-        ("KUNSAN", "", "SOUTH KOREA"),
-        ("LAKENHEATH", "", "UNITED KINGDOM"),
-        ("MILDENHALL", "", "UNITED KINGDOM"),
-        ("CROUGHTON", "", "UNITED KINGDOM"),
-        ("AVIANO", "", "ITALY"),
-        ("SIGONELLA", "", "ITALY"),
-        ("INCIRLIK", "", "TURKEY"),
-        ("AL UDEID", "", "QATAR"),
-        ("AL DHAFRA", "", "UNITED ARAB EMIRATES"),
-        ("ANDERSEN", "", "GUAM"),
-        ("DIEGO GARCIA", "", "BRITISH INDIAN OCEAN TERRITORY"),
-        ("THULE", "", "GREENLAND"),
-        ("KEFLAVIK", "", "ICELAND")
+        ("SAN ANTONIO", "UNITED STATES OF AMERICA", "US", "TEXAS", "STATE"),
+        ("COLORADO SPRINGS", "UNITED STATES OF AMERICA", "US", "COLORADO", "STATE"),
+        ("DAYTON", "UNITED STATES OF AMERICA", "US", "OHIO", "STATE"),
+        ("WASHINGTON", "UNITED STATES OF AMERICA", "US", "DISTRICT OF COLUMBIA", "DISTRICT"),
+        ("NORFOLK", "UNITED STATES OF AMERICA", "US", "VIRGINIA", "STATE"),
+        ("TAMPA", "UNITED STATES OF AMERICA", "US", "FLORIDA", "STATE"),
+        ("LAS VEGAS", "UNITED STATES OF AMERICA", "US", "NEVADA", "STATE"),
+        ("LOS ANGELES", "UNITED STATES OF AMERICA", "US", "CALIFORNIA", "STATE"),
+        ("OMAHA", "UNITED STATES OF AMERICA", "US", "NEBRASKA", "STATE"),
+        ("MONTGOMERY", "UNITED STATES OF AMERICA", "US", "ALABAMA", "STATE"),
+        ("SHREVEPORT", "UNITED STATES OF AMERICA", "US", "LOUISIANA", "STATE"),
+        ("SPOKANE", "UNITED STATES OF AMERICA", "US", "WASHINGTON", "STATE"),
+        ("TUCSON", "UNITED STATES OF AMERICA", "US", "ARIZONA", "STATE"),
+        ("GOLDSBORO", "UNITED STATES OF AMERICA", "US", "NORTH CAROLINA", "STATE"),
+        ("LITTLE ROCK", "UNITED STATES OF AMERICA", "US", "ARKANSAS", "STATE"),
+        ("BILOXI", "UNITED STATES OF AMERICA", "US", "MISSISSIPPI", "STATE"),
+        ("DEL RIO", "UNITED STATES OF AMERICA", "US", "TEXAS", "STATE"),
+        ("VALDOSTA", "UNITED STATES OF AMERICA", "US", "GEORGIA", "STATE"),
+        ("GREAT FALLS", "UNITED STATES OF AMERICA", "US", "MONTANA", "STATE"),
+        ("MINOT", "UNITED STATES OF AMERICA", "US", "NORTH DAKOTA", "STATE"),
+        ("CHEYENNE", "UNITED STATES OF AMERICA", "US", "WYOMING", "STATE"),
+        ("SALT LAKE CITY", "UNITED STATES OF AMERICA", "US", "UTAH", "STATE"),
+        ("ANCHORAGE", "UNITED STATES OF AMERICA", "US", "ALASKA", "STATE"),
+        ("HONOLULU", "UNITED STATES OF AMERICA", "US", "HAWAII", "STATE"),
+
+        # International locations
+        ("RAMSTEIN", "GERMANY", "DE", "RHEINLAND-PFALZ", "STATE"),
+        ("SPANGDAHLEM", "GERMANY", "DE", "RHEINLAND-PFALZ", "STATE"),
+        ("KAISERSLAUTERN", "GERMANY", "DE", "RHEINLAND-PFALZ", "STATE"),
+        ("STUTTGART", "GERMANY", "DE", "BADEN-WURTTEMBERG", "STATE"),
+        ("WIESBADEN", "GERMANY", "DE", "HESSE", "STATE"),
+        ("YOKOTA", "JAPAN", "JP", "TOKYO", "PREFECTURE"),
+        ("KADENA", "JAPAN", "JP", "OKINAWA", "PREFECTURE"),
+        ("MISAWA", "JAPAN", "JP", "AOMORI", "PREFECTURE"),
+        ("OSAN", "SOUTH KOREA", "KR", "GYEONGGI", "PROVINCE"),
+        ("KUNSAN", "SOUTH KOREA", "KR", "NORTH JEOLLA", "PROVINCE"),
+        ("LAKENHEATH", "UNITED KINGDOM", "GB", "ENGLAND", "COUNTRY"),
+        ("MILDENHALL", "UNITED KINGDOM", "GB", "ENGLAND", "COUNTRY"),
+        ("CROUGHTON", "UNITED KINGDOM", "GB", "ENGLAND", "COUNTRY"),
+        ("AVIANO", "ITALY", "IT", "FRIULI-VENEZIA GIULIA", "REGION"),
+        ("SIGONELLA", "ITALY", "IT", "SICILY", "REGION"),
+        ("INCIRLIK", "TURKEY", "TR", "ADANA", "PROVINCE"),
+        ("AL UDEID", "QATAR", "QA", "AL RAYYAN", "MUNICIPALITY"),
+        ("AL DHAFRA", "UNITED ARAB EMIRATES", "AE", "ABU DHABI", "EMIRATE"),
+        ("ANDERSEN", "GUAM", "GU", "GUAM", "TERRITORY"),
+        ("DIEGO GARCIA", "BRITISH INDIAN OCEAN TERRITORY", "IO", "DIEGO GARCIA", "TERRITORY"),
+        ("THULE", "GREENLAND", "GL", "AVANNAATA", "MUNICIPALITY"),
+        ("KEFLAVIK", "ICELAND", "IS", "SUDURNES", "REGION")
     ]
     
     statuses = ["ACTIVE", "RESERVE", "GUARD", "CIVILIAN", "CONTRACT"]
@@ -249,7 +249,7 @@ def generate_mpd_dataset(total_rows=100000):
         # Generate base attributes that stay the same across all roles for this person
         sid = generate_sid()
         snapshot = random.choice(snapshots)
-        city, state, country = random.choice(addresses)
+        city, country, country_code, admin1, admin1_type = random.choice(addresses)
         org_value = random.choice(orgs)
 
         # Generate common fields for this person
@@ -265,11 +265,13 @@ def generate_mpd_dataset(total_rows=100000):
             "NIAB_CATEGORY": f"CATEGORY {random.choice(['A', 'B', 'C', 'D', 'E'])}",
             "FUNCTIONAL_ROLE": random.choice(functional_roles),
             "COUNTRY": country,
+            "COUNTRY_CODE": country_code,
             "NIPF_PRIORITY": random.choice(nipf_priority),
             "EMPLOYEE_SKILL_COMMUNITY": random.choice(skills),
             "MISSION_ELEMENT": org_value,
             "LOCATION_SPECIFIC": f"LOCATION {random.randint(1, 50)}",
-            "STATE": state,
+            "ADDRESS_ADMIN_1": admin1,
+            "ADDRESS_ADMIN_1_TYPE": admin1_type,
             "WORK_ROLE": random.choice(work_roles),
             "CITY": city,
             "CIMPL_RANK_CATEGORY": random.choice(rank_categories),
